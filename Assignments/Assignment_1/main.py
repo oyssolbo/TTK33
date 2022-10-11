@@ -10,7 +10,7 @@ import model
 def main():
   # Initialization of memory
   num_states : int = 3
-  num_iterations : int = 200#00
+  num_iterations : int = 10000
 
   show_covariance_matrices : bool = False # Not implemented atm, but could be nice in the future
 
@@ -22,7 +22,7 @@ def main():
     iekf_covariance_matrices_array : np.ndarray = np.empty((num_states, num_states, num_iterations))
 
   v_ref_array : np.ndarray = np.ones((1, num_iterations))
-  omega_ref_array : np.ndarray = np.ones((1, num_iterations)) * (1 * np.pi / 180.0) 
+  omega_ref_array : np.ndarray = np.ones((1, num_iterations)) * (0.25 * np.pi / 180.0) 
 
 
   # Frequencies and timing 
@@ -39,10 +39,10 @@ def main():
 
   # Noise - must be tuned
     # Process-noise
-  q = [0.075, 0.1, 1 * dt * np.pi / 180.0]
+  q = [2 * dt, 1.5 * dt, 1 * dt * np.pi / 180.0]
     # Measurement noise
   r_pos = [1, 1]
-  r_vel = [0.25 * dt, dt * 1 * np.pi / 180.0]
+  r_vel = [0.25 * dt, 0.5 * dt * np.pi / 180.0]
 
   Qd : np.ndarray = np.diag(q)
   Rd : np.ndarray = np.diag(r_pos)  
@@ -89,7 +89,8 @@ def main():
     if iteration % (int(f_u / f_x)) == 0:
       # Assuming that the measurement-model is exact 
       # Also assuming as above, that the noise-values used for the EKF R-matrix could be used
-      y_noise = differential_drive_model.g_continous(x=x_exact, u=u_exact).ravel() + np.random.multivariate_normal(mean=np.zeros((len(r_pos))), cov=np.diag(r_pos)) 
+      y_exact = differential_drive_model.g_continous(x=x_exact, u=u_exact).ravel() # I have a theory that this must be transformed into the body-frame
+      y_noise = y_exact + np.random.multivariate_normal(mean=np.zeros((len(r_pos))), cov=np.diag(r_pos)) 
 
     ekf_x_hat, ekf_P_hat = EKF.step(u=u_noise, y=y_noise)
     iekf_x_hat, iekf_P_hat = IEKF.step(u=u_noise, y=y_noise)
@@ -99,8 +100,8 @@ def main():
 
 
   # Plotting the ekf_errors as well to make it easier to vizualise
-  fig, ax = plt.subplots(2)
-  fig.canvas.manager.set_window_title("EKF estimates vs ground truth")
+  fig, ax = plt.subplots(3)
+  fig.canvas.manager.set_window_title("Estimates vs ground truth")
 
   x_gt = gt_states_array[0, :]
   y_gt = gt_states_array[1, :]
@@ -110,36 +111,20 @@ def main():
   ekf_y_hat = ekf_state_estimates_array[1, :]
   ekf_theta_hat = ekf_state_estimates_array[2, :]
 
-
-  ax[0].plot(x_gt, y_gt, "g-", label="Ground truth")
-  ax[0].plot(ekf_x_hat, ekf_y_hat, "r.", label="EKF estimate")
-  ax[0].set_ylabel("y [m]")
-  ax[0].set_xlabel("x [m]")
-  ax[0].set_title("Position")
-
-  ax[1].plot(theta_gt, "g-", label="Ground truth")
-  ax[1].plot(ekf_theta_hat, "r.", label="EKF estimate")
-  ax[1].set_ylabel("theta [rad]")
-  ax[1].set_xlabel("k [0.01 s]")
-  ax[1].set_title("Angle")
-
-
-  fig, ax = plt.subplots(2)
-  fig.canvas.manager.set_window_title("IEKF estimates vs ground truth")
-
   iekf_x_hat = ekf_state_estimates_array[0, :]
   iekf_y_hat = ekf_state_estimates_array[1, :]
   iekf_theta_hat = ekf_state_estimates_array[2, :]
 
 
-  ax[0].plot(x_gt, y_gt, "g-", label="Ground truth")
-  ax[0].plot(iekf_x_hat, iekf_y_hat, "r.", label="IEKF estimate")
+  ax[0].plot(x_gt, ekf_x_hat, iekf_x_hat)#, iekf_x_hat, iekf_y_hat, "b.")
+  ax[0].legend(["Ground truth", "EKF", "IEKF"])
   ax[0].set_ylabel("y [m]")
   ax[0].set_xlabel("x [m]")
   ax[0].set_title("Position")
 
   ax[1].plot(theta_gt, "g-", label="Ground truth")
-  ax[1].plot(iekf_theta_hat, "r.", label="IEKF estimate")
+  ax[1].plot(ekf_theta_hat, "r.", label="EKF")
+  ax[1].plot(ekf_theta_hat, "b.", label="IEKF")
   ax[1].set_ylabel("theta [rad]")
   ax[1].set_xlabel("k [0.01 s]")
   ax[1].set_title("Angle")
@@ -148,9 +133,8 @@ def main():
   fig, ax = plt.subplots(2)
   fig.canvas.manager.set_window_title("IEKF compared to EKF")
 
-  ax[0].plot(ekf_x_hat, ekf_y_hat, "g.", iekf_x_hat, iekf_y_hat, "r.")
-  ax[0].legend(["EKF", "IEKF"])
-  # ax[0].plot(iekf_x_hat, iekf_y_hat, "r.", label="IEKF estimate")
+  ax[0].plot(ekf_x_hat, ekf_y_hat, "g.", label="EKF")
+  ax[0].plot(iekf_x_hat, iekf_y_hat, "r.", label="IEKF")
   ax[0].set_ylabel("y [m]")
   ax[0].set_xlabel("x [m]")
   ax[0].set_title("Position")
@@ -186,10 +170,9 @@ def main():
   ekf_error_ax[2].set_title("Error theta-angle")
 
   print("EKF")
+  print("Number of x-estimates with an error greater than 1 m: ", len(np.where(np.abs(ekf_x_errors) > 1)[0]))
+  print("Number of x-estimates with an error greater than 2 m: ", len(np.where(np.abs(ekf_x_errors) > 2)[0]))
   print("Number of x-estimates with an error greater than 5 m: ", len(np.where(np.abs(ekf_x_errors) > 5)[0]))
-  print("Number of x-estimates with an error greater than 10 m: ", len(np.where(np.abs(ekf_x_errors) > 10)[0]))
-  print("Number of x-estimates with an error greater than 20 m: ", len(np.where(np.abs(ekf_x_errors) > 20)[0]))
-  print("Number of x-estimates with an error greater than 40 m: ", len(np.where(np.abs(ekf_x_errors) > 40)[0]))
 
 
   iekf_errors = np.subtract(gt_states_array, iekf_state_estimates_array) 
@@ -216,10 +199,17 @@ def main():
   iekf_error_ax[2].set_title("Error theta-angle")
 
   print("IEKF")
+  print("Number of x-estimates with an error greater than 1 m: ", len(np.where(np.abs(iekf_x_errors) > 1)[0]))
+  print("Number of x-estimates with an error greater than 2 m: ", len(np.where(np.abs(iekf_x_errors) > 2)[0]))
   print("Number of x-estimates with an error greater than 5 m: ", len(np.where(np.abs(iekf_x_errors) > 5)[0]))
-  print("Number of x-estimates with an error greater than 10 m: ", len(np.where(np.abs(iekf_x_errors) > 10)[0]))
-  print("Number of x-estimates with an error greater than 20 m: ", len(np.where(np.abs(iekf_x_errors) > 20)[0]))
-  print("Number of x-estimates with an error greater than 40 m: ", len(np.where(np.abs(iekf_x_errors) > 40)[0]))
+
+
+  errors_ekf_vs_iekf = np.subtract(ekf_state_estimates_array, iekf_state_estimates_array)
+  ekf_iekf_error_fig, ekf_iekf_error_ax = plt.subplots(3)
+  ekf_iekf_error_fig.canvas.manager.set_window_title("Difference EKF and IEKF")
+  ekf_iekf_error_ax[0].plot(errors_ekf_vs_iekf[0,:], label="Difference x")
+  ekf_iekf_error_ax[1].plot(errors_ekf_vs_iekf[1,:], label="Difference y")
+  ekf_iekf_error_ax[2].plot(errors_ekf_vs_iekf[2,:], label="Difference theta")
 
   plt.show()
 
