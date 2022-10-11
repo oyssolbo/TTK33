@@ -19,7 +19,7 @@ class GroundTruth:
 
     # Parameters for the reference-models (randomly chosen)
       # Velocity 
-    self.tau_v : float = 5
+    self.tau_v : float = 2.5
     self.k_v : float = 1
 
       # Angular rate
