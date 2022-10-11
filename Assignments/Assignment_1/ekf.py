@@ -53,22 +53,31 @@ class EKF:
       P_hat : most recent covariance
     """
     # Assuming that an ERK1 - discretization is sufficient
-    F = np.eye(self.n_states) + self.dt * self.continous_model.F_continous(x=self.x_hat, u=u)
+    F = np.eye(self.n_states) + self.dt * self.continous_model.F_continous(x=self.x_hat, u=u) # ERK1 discretization
 
     # Prediction
-    x_pred = self.continous_model.f_continous(x=self.x_hat, u=u)
+    x_pred = self.x_hat + self.dt * self.continous_model.f_continous(x=self.x_hat, u=u) # ERK1 discretization
     P_pred = F @ self.P_hat @ F.T + self.Qd
 
     if y is not None:
       # Only correct the model if there are measurements
+      y_pred = self.continous_model.g_continous(x=x_pred, u=u).ravel()
 
       # Kalman gain
       G = self.continous_model.G_continous(x=x_pred, u=u) # The measurement Jacobian will be equal for discrete and continous systems
       K = P_pred @ G.T @ np.linalg.inv(G @ P_pred @ G.T + self.Rd)
 
       # Correction 
-      self.x_hat = x_pred + K @ (y - self.continous_model.g_continous(x=x_pred, u=u).ravel()).reshape((2, 1))
-      self.P_hat = (np.eye(self.n_states) - K @ G) @ P_pred 
+      x_hat = x_pred + K @ (y - y_pred).reshape((2, 1))
+      P_hat = (np.eye(self.n_states) - K @ G) @ P_pred 
+
+      # if np.linalg.norm(self.x_hat - x_hat) > 10:
+      #   print()
+      #   print(x_hat)
+      #   print(self.x_hat)
+      #   print()
+      self.x_hat = x_hat 
+      self.P_hat = P_hat 
 
     else:
       # If no measurements to correct, use the predictions 

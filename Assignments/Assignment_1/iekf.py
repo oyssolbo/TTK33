@@ -63,10 +63,10 @@ class IEKF:
 
     for iteration in range(n_optimization):
       # Assuming that an ERK1 - discretization is sufficient
-      F = np.eye(self.n_states) + self.dt * self.continous_model.F_continous(x=self.x_op, u=u)
+      F = np.eye(self.n_states) + self.dt * self.continous_model.F_continous(x=self.x_op, u=u) # ERK1 discretization
 
       # Prediction
-      x_pred = self.continous_model.f_continous(x=self.x_op, u=u)
+      x_pred = self.x_op + self.dt * self.continous_model.f_continous(x=self.x_op, u=u) # ERK1 discretization
       P_pred = F @ self.P_op @ F.T + self.Qd
 
       if y is not None:
