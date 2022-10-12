@@ -21,8 +21,8 @@ def main():
     ekf_covariance_matrices_array : np.ndarray = np.empty((num_states, num_states, num_iterations))
     iekf_covariance_matrices_array : np.ndarray = np.empty((num_states, num_states, num_iterations))
 
-  v_ref_array : np.ndarray = np.ones((1, num_iterations))
-  omega_ref_array : np.ndarray = np.ones((1, num_iterations)) * (0.25 * np.pi / 180.0) 
+  v_ref_array : np.ndarray = np.ones((1, num_iterations)) * 10.0
+  omega_ref_array : np.ndarray = np.ones((1, num_iterations)) * (2.0 * np.pi / 180.0) 
 
 
   # Frequencies and timing 
@@ -39,13 +39,13 @@ def main():
 
   # Noise - must be tuned
     # Process-noise
-  q = [2 * dt, 1.5 * dt, 1 * dt * np.pi / 180.0]
+  q_var = [1000000, 8000000, 2000000 * np.pi / 180.0]
     # Measurement noise
-  r_pos = [1, 1]
-  r_vel = [0.25 * dt, 0.5 * dt * np.pi / 180.0]
+  r_pos_var = [2, 2]
+  r_vel_var = [10, 2 * np.pi / 180.0]
 
-  Qd : np.ndarray = np.diag(q)
-  Rd : np.ndarray = np.diag(r_pos)  
+  Qd : np.ndarray = np.diag(q_var)
+  Rd : np.ndarray = np.diag([2, 2])  
 
 
   differential_drive_model = model.DifferentialDriveKinematicsModel()
@@ -84,13 +84,13 @@ def main():
     # Assumption that the tuning is perfect, such that the values for Q and R
     # could be used in the noise-generation. This is of course not true in reality,
     # and one would have to tune the EKF 
-    u_noise = u_exact + np.random.multivariate_normal(mean=np.zeros((len(r_vel))), cov=np.diag(r_vel))
+    u_noise = u_exact + np.random.multivariate_normal(mean=np.zeros((len(r_vel_var))), cov=np.diag(r_vel_var))
     y_noise = None 
-    if iteration % (int(f_u / f_x)) == 0:
+    if iteration % (int(f_u / f_x)) == 0 and iteration > 0:
       # Assuming that the measurement-model is exact 
       # Also assuming as above, that the noise-values used for the EKF R-matrix could be used
-      y_exact = differential_drive_model.g_continous(x=x_exact, u=u_exact).ravel() # I have a theory that this must be transformed into the body-frame
-      y_noise = y_exact + np.random.multivariate_normal(mean=np.zeros((len(r_pos))), cov=np.diag(r_pos)) 
+      y_exact = differential_drive_model.g_continous(x=x_exact, u=u_exact).ravel() 
+      y_noise = y_exact + np.random.multivariate_normal(mean=np.zeros((len(r_pos_var))), cov=np.diag(r_pos_var)) 
 
     ekf_x_hat, ekf_P_hat = EKF.step(u=u_noise, y=y_noise)
     iekf_x_hat, iekf_P_hat = IEKF.step(u=u_noise, y=y_noise)
@@ -116,34 +116,60 @@ def main():
   iekf_theta_hat = ekf_state_estimates_array[2, :]
 
 
-  ax[0].plot(x_gt, ekf_x_hat, iekf_x_hat)#, iekf_x_hat, iekf_y_hat, "b.")
+  ax[0].plot(x_gt)
+  ax[0].plot(ekf_x_hat)
+  ax[0].plot(iekf_x_hat)
   ax[0].legend(["Ground truth", "EKF", "IEKF"])
-  ax[0].set_ylabel("y [m]")
-  ax[0].set_xlabel("x [m]")
-  ax[0].set_title("Position")
+  ax[0].set_ylabel("x [m]")
+  ax[0].set_xlabel("k [0.01s]")
+  ax[0].set_title("Position in x")
 
-  ax[1].plot(theta_gt, "g-", label="Ground truth")
-  ax[1].plot(ekf_theta_hat, "r.", label="EKF")
-  ax[1].plot(ekf_theta_hat, "b.", label="IEKF")
-  ax[1].set_ylabel("theta [rad]")
-  ax[1].set_xlabel("k [0.01 s]")
-  ax[1].set_title("Angle")
+  ax[1].plot(y_gt)
+  ax[1].plot(ekf_y_hat)
+  ax[1].plot(iekf_y_hat)
+  ax[1].legend(["Ground truth", "EKF", "IEKF"])
+  ax[1].set_ylabel("y [m]")
+  ax[1].set_xlabel("k [0.01s]")
+  ax[1].set_title("Position in y")
+
+  ax[2].plot(theta_gt)
+  ax[2].plot(ekf_x_hat)
+  ax[2].plot(iekf_x_hat)
+  ax[2].legend(["Ground truth", "EKF", "IEKF"])
+  ax[2].set_ylabel("theta [rad]")
+  ax[2].set_xlabel("k [0.01 s]")
+  ax[2].set_title("Angle")
 
 
   fig, ax = plt.subplots(2)
-  fig.canvas.manager.set_window_title("IEKF compared to EKF")
+  fig.canvas.manager.set_window_title("Comparison GT, EKF and IEKF")
 
-  ax[0].plot(ekf_x_hat, ekf_y_hat, "g.", label="EKF")
-  ax[0].plot(iekf_x_hat, iekf_y_hat, "r.", label="IEKF")
+  ax[0].plot(ekf_x_hat, ekf_y_hat, "r", label="EKF")
+  ax[0].plot(x_gt, y_gt, "g-", label="Ground truth")
+  ax[0].legend(["EKF", "Ground truth"])
   ax[0].set_ylabel("y [m]")
   ax[0].set_xlabel("x [m]")
-  ax[0].set_title("Position")
+  # ax[0].set_title("EKF vs GT")
 
-  ax[1].plot(ekf_theta_hat, "g.", label="EKF estimate")
-  ax[1].plot(iekf_theta_hat, "r.", label="IEKF estimate")
-  ax[1].set_ylabel("theta [rad]")
-  ax[1].set_xlabel("k [0.01 s]")
-  ax[1].set_title("Angle")
+  ax[1].plot(iekf_x_hat, iekf_y_hat, "b", label="IEKF")
+  ax[1].plot(x_gt, y_gt, "g-", label="Ground truth")
+  ax[1].legend(["IEKF", "Ground truth"])
+  ax[1].set_ylabel("y [m]")
+  ax[1].set_xlabel("x [m]")
+  # ax[1].set_title("Position")
+
+  # ax[2].plot(iekf_x_hat, iekf_y_hat, "b-", label="IEKF")
+  # ax[2].plot(ekf_x_hat, ekf_y_hat, "r.", label="EKF")
+  # ax[2].set_ylabel("y [m]")
+  # ax[2].set_xlabel("x [m]")
+  # ax[2].set_title("Position")
+
+  # ax[1].plot(theta_gt, "g-", label="Ground truth")
+  # ax[1].plot(ekf_theta_hat, "r", label="EKF estimate")
+  # ax[1].plot(iekf_theta_hat, "b", label="IEKF estimate")
+  # ax[1].set_ylabel("theta [rad]")
+  # ax[1].set_xlabel("k [0.01 s]")
+  # ax[1].set_title("Angle")
 
 
   ekf_errors = np.subtract(gt_states_array, ekf_state_estimates_array) 
@@ -173,6 +199,7 @@ def main():
   print("Number of x-estimates with an error greater than 1 m: ", len(np.where(np.abs(ekf_x_errors) > 1)[0]))
   print("Number of x-estimates with an error greater than 2 m: ", len(np.where(np.abs(ekf_x_errors) > 2)[0]))
   print("Number of x-estimates with an error greater than 5 m: ", len(np.where(np.abs(ekf_x_errors) > 5)[0]))
+  print()
 
 
   iekf_errors = np.subtract(gt_states_array, iekf_state_estimates_array) 
@@ -183,17 +210,17 @@ def main():
   iekf_y_errors = iekf_errors[1, :]
   iekf_theta_errors = iekf_errors[2, :]
 
-  iekf_error_ax[0].plot(iekf_x_errors, label="Errors in x")
+  iekf_error_ax[0].plot(iekf_x_errors)
   iekf_error_ax[0].set_ylabel("error x [m]")
   iekf_error_ax[0].set_xlabel("k [0.01 s]")
   iekf_error_ax[0].set_title("Error x-position")
 
-  iekf_error_ax[1].plot(iekf_y_errors, label="Errors in y")
+  iekf_error_ax[1].plot(iekf_y_errors)
   iekf_error_ax[1].set_ylabel("error y [m]")
   iekf_error_ax[1].set_xlabel("k [0.01 s]")
   iekf_error_ax[1].set_title("Error y-position")
   
-  iekf_error_ax[2].plot(iekf_theta_errors, label="Errors in theta")
+  iekf_error_ax[2].plot(iekf_theta_errors)
   iekf_error_ax[2].set_ylabel("error theta [rad]")
   iekf_error_ax[2].set_xlabel("k [0.01 s]")
   iekf_error_ax[2].set_title("Error theta-angle")
@@ -202,6 +229,7 @@ def main():
   print("Number of x-estimates with an error greater than 1 m: ", len(np.where(np.abs(iekf_x_errors) > 1)[0]))
   print("Number of x-estimates with an error greater than 2 m: ", len(np.where(np.abs(iekf_x_errors) > 2)[0]))
   print("Number of x-estimates with an error greater than 5 m: ", len(np.where(np.abs(iekf_x_errors) > 5)[0]))
+  print()
 
 
   errors_ekf_vs_iekf = np.subtract(ekf_state_estimates_array, iekf_state_estimates_array)
@@ -217,4 +245,80 @@ def main():
 
 if __name__ == '__main__':
   main()
+
+
+"""
+Comments:
+  It looks like it is something slightly buggy with the implementation:
+
+    I would have expected that the IEKF would perform much better compared to the EKF.
+    This might be the tuning, which is naturally subpar, as it was done in a hurry, however
+    the EKF actually performs better in many cases compared to the IEKF. The IEKF often include
+    more measurements with a larger error at both 1, 2 and 5 meters, compared to the EKF. In 
+    reality, it is expected to perform better, and not consistently slightly worse or far worse
+    than the EKF. It is likely just an implemenation error somewhere that I have overlooked. 
+
+    There is something wierd with the plotting function, as it will sometimes not include all 
+    of the values in the plots. For example, the plot 'estimates vs ground truth' only show the 
+    IEKF and GT, and does not include the EKF. I have no clue why. As a C++ enjoyer, Python is 
+    just wierd.    
+
+    In other words, the output from the estimators will be incorrect, and must be taken with a 
+    couple of kgs of NaCl. 
+
+
+  Increasing the noise. Only one of the variables have the noise increased at a time, to 
+  separate out the effects from increasing the noise. This is therefore a more theoretical 
+  exercise, as the noise-levels will be connected in reality, where one should expect an 
+  increase in one noise level also results in a connection with another noise level.
+
+  It must also be noted that an increase in one measurement noise level, the process noise has 
+  been left untouched. When the measurement-noise was increased, the corresponding R-matrix was
+  NOT changed. An argument could be made that the measurement noise matrix, R, can be well-defined 
+  by estimates on our or the manufacturer behalf. And such, it makes sense to tune the R-matrix 
+  accordingly. I chose not to, however that means that my EKF/IEKF will have too large faith 
+  in measurements which have an increased noise-level. 
+
+
+    Angular velocity:
+      Increased the angular noise to 2e9 deg^2 (yes, a variance proportional to a billion). This 
+      makes the estimates far noisier, however the system is still able to follow the desired 
+      trajectory. This makes some sence, as the noise is integrated, where the expected value
+      over time will be zero (as it is unbiased). The position estimates therefore becomes more noisy, however 
+      is less affected by a high variance. Combined with good position updates, means that it is able to
+      follow the ground truth. I am however impressed that it was able to follow that well though. 
+
+    Linear velocity:
+      Increased the noise to 10000 (m/s)^2, which created more noisy estimates, with positional errors
+      in approaching 10 meters several times. However, it still managed to achieve proper estimates
+      and follow the ground truth. However, the noise will be multiplied with a cos() or sin() of the
+      angle, before being integrated. Under the assumption that the angular velocity has relatively 
+      little change between the state estimates, one should expect the integration of the unbiased 
+      noise to be close to zero. Not quite zero, due to cos() and sin(). 
+
+    To comment on the positional variance used, used a variance in the position measurements in both 
+    the linear and the angular velocity noise of 2 meters in each. This is due to assuming a standard
+    GNSS, under good circumstances. E.g. little to no multipath and little disturbances from the 
+    ionosphere.   
+
+    Position:
+      Increasing the noise in both x and y simultaneously, which makes the positional measurements 
+      have large deviations. This means that the corrections cause large changes, due to having large 
+      trust in the measurements. If the R-matrix was tuned similarly to the measurement-noise levels,
+      the kalman gain would place little importance in the update step, and thus relying more on the 
+      predicted values.
+
+
+  It is not mentioned in the assignment to change the process noise measurements. Increasing these 
+  noise levels, just makes the model expect large values in the states between the iterations. For 
+  example, having a large variance in the positions, implies that the system can have somewhat
+  larger changes in position. An obvious case is where a constant velocity model is used to describe 
+  a system which turns every so often. A larger noise level implies that it could take these turns 
+  better into account, however will be suboptimal if the system moves at a relatively straight line.
+
+"""
+
+
+
+
 
