@@ -68,16 +68,8 @@ class EKF:
       K = P_pred @ G.T @ np.linalg.inv(G @ P_pred @ G.T + self.Rd)
 
       # Correction 
-      x_hat = x_pred + K @ (y - y_pred).reshape((2, 1))
-      P_hat = (np.eye(self.n_states) - K @ G) @ P_pred 
-
-      # if np.linalg.norm(self.x_hat - x_hat) > 10:
-      #   print()
-      #   print(x_hat)
-      #   print(self.x_hat)
-      #   print()
-      self.x_hat = x_hat 
-      self.P_hat = P_hat 
+      self.x_hat = x_pred + K @ (y - y_pred).reshape((2, 1))
+      self.P_hat = (np.eye(self.n_states) - K @ G) @ P_pred 
 
     else:
       # If no measurements to correct, use the predictions 

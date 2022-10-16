@@ -10,19 +10,19 @@ import model
 def main():
   # Initialization of memory
   num_states : int = 3
-  num_iterations : int = 10000
+  num_steps : int = 10000
 
   show_covariance_matrices : bool = False # Not implemented atm, but could be nice in the future
 
-  gt_states_array : np.ndarray = np.empty((num_states, num_iterations))
-  ekf_state_estimates_array : np.ndarray = np.empty((num_states, num_iterations))
-  iekf_state_estimates_array : np.ndarray = np.empty((num_states, num_iterations))
+  gt_states_array : np.ndarray = np.empty((num_states, num_steps))
+  ekf_state_estimates_array : np.ndarray = np.empty((num_states, num_steps))
+  iekf_state_estimates_array : np.ndarray = np.empty((num_states, num_steps))
   if show_covariance_matrices:
-    ekf_covariance_matrices_array : np.ndarray = np.empty((num_states, num_states, num_iterations))
-    iekf_covariance_matrices_array : np.ndarray = np.empty((num_states, num_states, num_iterations))
+    ekf_covariance_matrices_array : np.ndarray = np.empty((num_states, num_states, num_steps))
+    iekf_covariance_matrices_array : np.ndarray = np.empty((num_states, num_states, num_steps))
 
-  v_ref_array : np.ndarray = np.ones((1, num_iterations)) * 10.0
-  omega_ref_array : np.ndarray = np.ones((1, num_iterations)) * (2.0 * np.pi / 180.0) 
+  v_ref_array : np.ndarray = np.ones((1, num_steps)) * 10.0
+  omega_ref_array : np.ndarray = np.ones((1, num_steps)) * (2.0 * np.pi / 180.0) 
 
 
   # Frequencies and timing 
@@ -39,7 +39,7 @@ def main():
 
   # Noise - must be tuned
     # Process-noise
-  q_var = [1000000, 8000000, 2000000 * np.pi / 180.0]
+  q_var = [1, 0.8, 2 * np.pi / 180.0]
     # Measurement noise
   r_pos_var = [2, 2]
   r_vel_var = [10, 2 * np.pi / 180.0]
@@ -73,7 +73,7 @@ def main():
   )
 
 
-  for iteration in range(num_iterations):
+  for iteration in range(num_steps):
     v_ref = v_ref_array[0, iteration]
     omega_ref = omega_ref_array[0, iteration]
 
@@ -266,6 +266,11 @@ Comments:
     In other words, the output from the estimators will be incorrect, and must be taken with a 
     couple of kgs of NaCl. 
 
+    Why am I handing this in? I have spent far too much time on debugging this assignment. The 
+    project thesis is taking up too much time, and it required more priority at the time of 
+    writing. Also with the project being started, it makes more sense to spend some time on it, 
+    instead of debugging this assignment. 
+
 
   Increasing the noise. Only one of the variables have the noise increased at a time, to 
   separate out the effects from increasing the noise. This is therefore a more theoretical 
@@ -313,8 +318,9 @@ Comments:
   noise levels, just makes the model expect large values in the states between the iterations. For 
   example, having a large variance in the positions, implies that the system can have somewhat
   larger changes in position. An obvious case is where a constant velocity model is used to describe 
-  a system which turns every so often. A larger noise level implies that it could take these turns 
-  better into account, however will be suboptimal if the system moves at a relatively straight line.
+  a system which can turn every so often. A larger noise level implies that it would be better for
+  movement with larger motion, such as turning. It will however be suboptimal if the system moves at 
+  a relatively straight line, as the system changes far less.
 
 """
 
