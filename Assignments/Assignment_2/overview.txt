@@ -1,0 +1,34 @@
+Assignment details:
+  Implementing the RRT-algorithm
+
+  Task:
+    The second (and final) assignment relates to the implementation of the Rapidly-exploring Random Trees algorithm (RRT).
+    Resources
+
+        A quick pseudo code overview of RRT is found on slide 14 of the last lecture we did in class (link).
+        A more comprehensive overview of sampling-based motion planning can be found in Chapter 5 of the famour "Planning Algorithms" book (link). // Any of you interested in path planning should bookmark this book.
+        The original paper on RRT by Steven LaValle is attached.
+        The page dedicated to RRT by LaValle provides some further information and indicative code (link).
+
+    What you are requested to do specifically is a relatively simple 2D implementation. In particular:
+
+        Create a 2D Grid world of 1000 x 1000 cells (the size does not matter, consider each square cell to have an edge of unit length "1"). 
+        Select arbitrarily 500 of such cells such that these 500 cells represent 2 obstacles. 
+        Consider a 2D point mass that can transition from any initial vertex (x_0,y_0) to any other desired vertex (x_d,y_d) via a straight line segment/edge.
+        Code RRT for the above point mass "robot" and world representation.
+        Initialize the original robot's location at (x_0,y_0) for 10 different locations (i.e., 10 different x_0,y_0 pairs which you may select yourselves or get them randomly so long as they are not inside the obstacles).
+        Decide a fixed final desired location (x_f,y_f).
+        Run RRT 10 times for the above 10 (x_0,y_0)_i to (x_f,y_f) {i=1,2,...10} cases
+
+    Provide your code in Python, ideally as an ipython notebook (or other similar system).
+
+
+
+Thought process:
+  - create the world for simulating/representing the system:
+    - class for boxes which have private variables for coordinate (upper left corner) and a boolean variable for indicating that it is an obstacle 
+    - for loops in x and y for generating the world 
+    - plotting (with coloring) could be done like https://stackoverflow.com/questions/43971138/python-plotting-colored-grid-based-on-values
+    - must have a method for choosing which boxes are supposed to be an obstacle or not 
+
+  - develop the RRT algorithm 
