@@ -30,7 +30,7 @@ def check_line_segment_intersection(xy_start_0 : tuple, xy_end_0 : tuple, xy_sta
       [y2_min_y1, -y4_min_y3]
     ]
   )
-  B : np.ndarray = np.array(
+  b : np.ndarray = np.array(
     [
       [x3_min_x1],
       [y3_min_y1]
@@ -41,11 +41,11 @@ def check_line_segment_intersection(xy_start_0 : tuple, xy_end_0 : tuple, xy_sta
     # Parallel line segments
     return False
 
-  val : np.ndarray = np.linalg.inv(A) @ B 
-  s : float = val[0]
-  t : float = val[1]
+  val : np.ndarray = np.linalg.inv(A) @ b 
+  s : float = val[0, 0]
+  t : float = val[1, 0]
 
-  return (0 < s < 1) and (0 < t < 1)
+  return (s < 0) and (t > 1)
 
 
 def check_obstacle_free_straight_line_path(xy_start : tuple, xy_end : tuple, obstacles : list = []) -> bool:
@@ -69,16 +69,20 @@ def check_obstacle_free_straight_line_path(xy_start : tuple, xy_end : tuple, obs
   for obstacle in obstacles:
     assert len(obstacle) % 2 == 0, "Obstacles with num corners 2n + 1 not implemented yet"
     
-    for corner_idx in range(len(obstacle) - 1):
+    for corner_idx in range(len(obstacle)):
       current_corner = obstacle[corner_idx]
-      next_corner = obstacle[corner_idx + 1]
+      if corner_idx + 1 >= len(obstacle):
+        next_corner = obstacle[0]
+      else:
+        next_corner = obstacle[corner_idx + 1]
 
-      # line = LineString([(xy_start), (xy_end)])
-      # corner_line = LineString([(current_corner), (next_corner)])
-
-      if not check_line_segment_intersection(xy_start, xy_end, current_corner, next_corner): #line.intersects(corner_line):
-        print("Obstacle hit from {} to {} at corner-idx: {}".format(xy_start, xy_end, corner_idx))
+      line = LineString([(xy_start), (xy_end)])
+      corner_line = LineString([(current_corner), (next_corner)])
+      if line.intersects(corner_line):
         return False
+
+      # if check_line_segment_intersection(xy_start, xy_end, current_corner, next_corner): 
+      #   return False
 
   return True
 
@@ -222,7 +226,9 @@ if __name__ == '__main__':
   distance_target_hit = 50
 
   # Create obstacles and run RRT
-  obstacles = [[(x, y) for x in range(150, 451, 300) for y in range(600, 801, 200)]] # Only create corners of the obstacle
+  # obstacles = [[(x, y) for x in range(150, 451, 300) for y in range(800, 599, -200)]] # Only create corners of the obstacle
+  # Bit hardcoded, and a better method should be implemented
+  obstacles = [[(150, 600), (300, 600), (300, 800), (150, 800)], [(700, 350), (950, 350), (950, 950), (700, 950)]]
   searched_positions, edges = RRT_with_obstacles(xy_0, xy_target, distance_target_hit, (world_width, world_height), obstacles)
 
   # Plot the positions
@@ -242,9 +248,13 @@ if __name__ == '__main__':
   # Plotting the last edge to the target
   plt.plot([x_positions[-1], xy_target[0]], [y_positions[-1], xy_target[1]], 'k-')
   
-  # Plotting obstacles
-  if obstacles:
-    plt.plot([obst[0] for obst in obstacles], [obst[1] for obst in obstacles], 'r-')
+  # Plotting obstacles - a bit hardcoded though
+  for obst in obstacles:
+    plt.plot(
+      [corner_pos[0] for corner_pos in obst] + [obst[0][0]], 
+      [corner_pos[1] for corner_pos in obst] + [obst[0][1]], 
+      'r-'
+    )
  
   plt.show()
 
